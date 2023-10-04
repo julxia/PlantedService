@@ -16,8 +16,8 @@ export default class GroupConcept {
     return { msg: "Group successfully created!", post: await this.groups.readOne({ _id }) };
   }
 
-  async updateName(_id: ObjectId, name: string) {
-    await this.groups.updateOne({ _id }, { name });
+  async updateGroup(_id: ObjectId, update: Partial<GroupDoc>) {
+    await this.groups.updateOne({ _id }, update);
     return { msg: `Group name was updated to ${name} successfully!` };
   }
 

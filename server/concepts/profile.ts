@@ -17,20 +17,19 @@ export default class ProfileConcept {
     return { msg: "Profile created successfully!", user: await this.profiles.readOne({ _id }) };
   }
 
-  async getProfileById(_id: ObjectId) {
-    const profile = await this.profiles.readOne({ _id });
-    if (profile === null) {
-      throw new NotFoundError(`Profile not found!`);
-    }
-    return profile;
-  }
+  //   async getProfileById(_id: ObjectId) {
+  //     const profile = await this.profiles.readOne({ _id });
+  //     if (profile === null) {
+  //       throw new NotFoundError(`Profile not found!`);
+  //     }
+  //     return profile;
+  //   }
 
-  async getProfileByUsername(username: string) {
-    const profile = await this.profiles.readOne({ username });
-    if (profile === null) {
-      throw new NotFoundError(`Profile not found!`);
-    }
-    return profile;
+  async getProfiles(username?: string) {
+    // If username is undefined, return all profiles by applying empty filter
+    const filter = username ? { username } : {};
+    const users = await this.profiles.readMany(filter);
+    return users;
   }
 
   async update(_id: ObjectId, update: Partial<ProfileDoc>) {
