@@ -1,12 +1,9 @@
 import { ObjectId } from "mongodb";
 
-import { getExpressRouter, Router } from "./framework/router";
+import { Router, getExpressRouter } from "./framework/router";
 
-import { Comments, Friend, Groups, Post, Profile, User, WebSession } from "./app";
-import { CommentDoc } from "./concepts/comments";
-import { GroupDoc } from "./concepts/group";
+import { Friend, Post, User, WebSession } from "./app";
 import { PostDoc, PostOptions } from "./concepts/post";
-import { ProfileDoc } from "./concepts/profile";
 import { UserDoc } from "./concepts/user";
 import { WebSessionDoc } from "./concepts/websession";
 import Responses from "./responses";
@@ -29,18 +26,14 @@ class Routes {
   }
 
   @Router.post("/users")
-  async createUser(session: WebSessionDoc, username: string, password: string, displayName: string, photo: string) {
+  async createUser(session: WebSessionDoc, username: string, password: string) {
     WebSession.isLoggedOut(session);
-    await Profile.create(username, displayName, photo);
     return await User.create(username, password);
   }
 
   @Router.patch("/users")
   async updateUser(session: WebSessionDoc, update: Partial<UserDoc>) {
     const user = WebSession.getUser(session);
-    if (update.username) {
-      await Profile.update(user, { username: update.username });
-    }
     return await User.update(user, update);
   }
 
@@ -49,17 +42,6 @@ class Routes {
     const user = WebSession.getUser(session);
     WebSession.end(session);
     return await User.delete(user);
-  }
-
-  @Router.patch("/profile")
-  async updateProfile(session: WebSessionDoc, update: Partial<ProfileDoc>) {
-    const user = WebSession.getUser(session);
-    return await Profile.update(user, update);
-  }
-
-  @Router.get("/profile/:username")
-  async getProfile(username: string) {
-    return await Profile.getProfiles(username);
   }
 
   @Router.post("/login")
@@ -153,96 +135,6 @@ class Routes {
     const user = WebSession.getUser(session);
     const fromId = (await User.getUserByUsername(from))._id;
     return await Friend.rejectRequest(fromId, user);
-  }
-
-  @Router.get("/comments")
-  async getComments(author?: string, target?: ObjectId) {
-    let comments;
-    if (author) {
-      const id = (await User.getUserByUsername(author))._id;
-      comments = await Comments.getByAuthor(id);
-    } else if (target) {
-      comments = await Comments.getByTarget(target);
-    } else {
-      comments = await Comments.getComments({});
-    }
-    return comments;
-  }
-
-  @Router.post("/comments")
-  async createComment(session: WebSessionDoc, target: ObjectId, message: string) {
-    const user = WebSession.getUser(session);
-    const created = await Comments.create(target, user, message);
-    return { msg: created.msg, post: created };
-  }
-
-  @Router.patch("/comments/:_id")
-  async updateComment(session: WebSessionDoc, _id: ObjectId, update: Partial<CommentDoc>) {
-    const user = WebSession.getUser(session);
-    await Comments.isAuthor(user, _id);
-    return await Comments.update(_id, update);
-  }
-
-  @Router.delete("/comments/:_id")
-  async deleteComment(session: WebSessionDoc, _id: ObjectId) {
-    const user = WebSession.getUser(session);
-    await Comments.isAuthor(user, _id);
-    return Comments.delete(_id);
-  }
-
-  @Router.post("/groups")
-  async createGroup(session: WebSessionDoc, name: string) {
-    const user = WebSession.getUser(session);
-    await WebSession.isLoggedIn();
-    const created = await Groups.create(user, name);
-    return { msg: created.msg, post: created };
-  }
-
-  @Router.patch("/groups")
-  async updateGroup(session: WebSessionDoc, name: string, update: Partial<GroupDoc>) {
-    // check if group name exists
-    // check if user is part of the group
-    // update group (get a copy of database, compare to update), add and remove members/posts
-  }
-
-  @Router.get("/groups/posts")
-  async getGroupPosts(session: WebSessionDoc, name: string) {
-    // check if group name exists
-    // check if user is part of the group
-    // get group posts
-  }
-
-  @Router.get("/groups/members")
-  async getGroupMembers(session: WebSessionDoc, name: string) {
-    // check if group name exists
-    // check if user is part of the group
-    // get group members
-  }
-
-  @Router.post("/tags")
-  async createTag(session: WebSessionDoc, tag: string) {
-    // get user, make sure logged in
-    // create tag if tag does not already exist
-    // return back to user
-  }
-
-  @Router.patch("/tags")
-  async updateTag(session: WebSessionDoc, tag: string, update: Partial<GroupDoc>) {
-    // user is logged in
-    // check if tag name exists for particular user
-    // update tag
-  }
-
-  @Router.get("/tags/:tagName")
-  async getTagMedia(session: WebSessionDoc, tag: string) {
-    // based on user logged in
-    // get all media under tagName
-  }
-
-  @Router.get("/tags")
-  async getAllTagNames(session: WebSessionDoc) {
-    // check if user logged in
-    // get all tag names that they have created
   }
 }
 
