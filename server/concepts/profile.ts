@@ -17,7 +17,7 @@ export default class ProfileConcept<User extends UserType> {
   async create(owner: User, displayName: string, photo: string) {
     await this.canCreate(owner);
     const _id = await this.profiles.createOne({ username: owner.username, displayName, photo });
-    return { msg: "User profile created successfully!", user: await this.profiles.readOne({ _id }) };
+    return { msg: "User profile created successfully!", profile: await this.profiles.readOne({ _id }) };
   }
 
   async getProfileByUsername(username: string) {
