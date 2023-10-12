@@ -2,8 +2,9 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Friend, Post, User, WebSession } from "./app";
+import { Friend, Post, Profile, User, WebSession } from "./app";
 import { PostDoc, PostOptions } from "./concepts/post";
+import { ProfileDoc } from "./concepts/profile";
 import { UserDoc } from "./concepts/user";
 import { WebSessionDoc } from "./concepts/websession";
 import Responses from "./responses";
@@ -25,23 +26,48 @@ class Routes {
     return await User.getUserByUsername(username);
   }
 
+  @Router.get("/profiles")
+  async getProfiles() {
+    return await Profile.getProfiles();
+  }
+
+  @Router.get("/profiles/:username")
+  async getProfile(username: string) {
+    return await Profile.getProfileByUsername(username);
+  }
+
   @Router.post("/users")
-  async createUser(session: WebSessionDoc, username: string, password: string) {
+  async createUser(session: WebSessionDoc, username: string, password: string, displayName: string, photo: string) {
     WebSession.isLoggedOut(session);
-    return await User.create(username, password);
+    const { user } = await User.create(username, password);
+    return await Profile.create(user!, displayName, photo);
   }
 
   @Router.patch("/users")
   async updateUser(session: WebSessionDoc, update: Partial<UserDoc>) {
     const user = WebSession.getUser(session);
-    return await User.update(user, update);
+    const username = await User.getUserById(user).then((response) => response.username);
+    const profileID = await Profile.getProfileByUsername(username).then((response) => response._id);
+    await User.update(user, update);
+    return await Profile.update(profileID, { username: update.username });
+  }
+
+  @Router.patch("/profiles")
+  async updateProfile(session: WebSessionDoc, update: Partial<ProfileDoc>) {
+    const user = WebSession.getUser(session);
+    const username = await User.getUserById(user).then((response) => response.username);
+    const profileID = await Profile.getProfileByUsername(username).then((response) => response._id);
+    return await Profile.update(profileID, update);
   }
 
   @Router.delete("/users")
   async deleteUser(session: WebSessionDoc) {
     const user = WebSession.getUser(session);
+    const username = await User.getUserById(user).then((response) => response.username);
+    const profileID = await Profile.getProfileByUsername(username).then((response) => response._id);
     WebSession.end(session);
-    return await User.delete(user);
+    await User.delete(user);
+    return await Profile.delete(profileID);
   }
 
   @Router.post("/login")
