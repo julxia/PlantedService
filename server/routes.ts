@@ -46,28 +46,25 @@ class Routes {
   @Router.patch("/users")
   async updateUser(session: WebSessionDoc, update: Partial<UserDoc>) {
     const user = WebSession.getUser(session);
-    const username = await User.getUserById(user).then((response) => response.username);
-    const profileID = await Profile.getProfileByUsername(username).then((response) => response._id);
+    const owner = await User.getUserById(user);
     await User.update(user, update);
-    return await Profile.update(profileID, { username: update.username });
+    return await Profile.update(owner, { username: update.username });
   }
 
   @Router.patch("/profiles")
   async updateProfile(session: WebSessionDoc, update: Partial<ProfileDoc>) {
     const user = WebSession.getUser(session);
-    const username = await User.getUserById(user).then((response) => response.username);
-    const profileID = await Profile.getProfileByUsername(username).then((response) => response._id);
-    return await Profile.update(profileID, update);
+    const owner = await User.getUserById(user);
+    return await Profile.update(owner, update);
   }
 
   @Router.delete("/users")
   async deleteUser(session: WebSessionDoc) {
     const user = WebSession.getUser(session);
-    const username = await User.getUserById(user).then((response) => response.username);
-    const profileID = await Profile.getProfileByUsername(username).then((response) => response._id);
+    const owner = await User.getUserById(user);
     WebSession.end(session);
     await User.delete(user);
-    return await Profile.delete(profileID);
+    return await Profile.delete(owner);
   }
 
   @Router.post("/login")

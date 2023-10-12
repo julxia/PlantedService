@@ -9,7 +9,9 @@ export interface ProfileDoc extends BaseDoc {
   photo: string; // photo endpoint
 }
 
-export default class ProfileConcept<User extends UserDoc> {
+type UserType = Omit<UserDoc, "password">;
+
+export default class ProfileConcept<User extends UserType> {
   public readonly profiles = new DocCollection<ProfileDoc>("profiles");
 
   async create(owner: User, displayName: string, photo: string) {
@@ -33,13 +35,15 @@ export default class ProfileConcept<User extends UserDoc> {
     return users;
   }
 
-  async update(_id: ObjectId, update: Partial<ProfileDoc>) {
-    // username should only be updated if it is updated in UserConcept, otherwise remains the same
+  async update(owner: User, update: Partial<ProfileDoc>) {
+    // username should only be updated if updated by call to UserConcept
+    const _id = await this.getProfileByUsername(owner.username).then((response) => response._id);
     await this.profiles.updateOne({ _id }, update);
     return { msg: "User Profile updated successfully!" };
   }
 
-  async delete(_id: ObjectId) {
+  async delete(owner: User) {
+    const _id = await this.getProfileByUsername(owner.username).then((response) => response._id);
     await this.profiles.deleteOne({ _id });
     return { msg: "User Profile deleted!" };
   }
@@ -51,7 +55,7 @@ export default class ProfileConcept<User extends UserDoc> {
     }
   }
 
-  private async canCreate(user: UserDoc) {
+  private async canCreate(user: User) {
     if (!user) {
       throw new BadValuesError("The user must exist to create a profile!");
     }
