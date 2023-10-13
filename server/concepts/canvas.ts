@@ -10,7 +10,7 @@ export interface CanvasDoc extends BaseDoc {
 
 type UserType = Omit<UserDoc, "password">;
 
-export default class GroupConcept<User extends UserType> {
+export default class CanvasConcept<User extends UserType> {
   public readonly canvas = new DocCollection<CanvasDoc>("canvas");
 
   async addPost(user: User, post: ObjectId) {
