@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Friend, Post, Profile, User, WebSession } from "./app";
+import { Comments, Friend, Post, Profile, User, WebSession } from "./app";
 import { PostDoc, PostOptions } from "./concepts/post";
 import { ProfileDoc } from "./concepts/profile";
 import { UserDoc } from "./concepts/user";
@@ -111,6 +111,43 @@ class Routes {
     const user = WebSession.getUser(session);
     await Post.isAuthor(user, _id);
     return Post.delete(_id);
+  }
+
+  @Router.get("/comments")
+  async getComments(author?: string, post?: ObjectId) {
+    let comments;
+    if (author) {
+      const id = (await User.getUserByUsername(author))._id;
+      comments = await Comments.getByAuthor(id);
+    } else if (post) {
+      comments = await Comments.getByTarget(post);
+    } else {
+      comments = await Comments.getComments({});
+    }
+    return Responses.comments(comments);
+  }
+
+  @Router.post("/comments")
+  async createComment(session: WebSessionDoc, target: ObjectId, message: string) {
+    const user = WebSession.getUser(session);
+    const created = await Comments.create(target, user, message);
+    return { msg: created.msg, comment: await Responses.comment(created.comment) };
+  }
+
+  @Router.patch("/comments/:_id")
+  async updateComment(session: WebSessionDoc, _id: ObjectId, update: Partial<PostDoc>) {
+    const user = WebSession.getUser(session);
+    await Comments.isAuthor(user, _id);
+    return await Comments.update(_id, update);
+  }
+
+  @Router.delete("/comments/:_id")
+  async deleteComment(session: WebSessionDoc, _id: ObjectId) {
+    console.log(_id);
+    const user = WebSession.getUser(session);
+    console.log(user);
+    await Comments.isAuthor(user, _id);
+    return Comments.delete(_id);
   }
 
   @Router.get("/friends")

@@ -13,7 +13,7 @@ export default class CommentsConcept {
 
   async create(target: ObjectId, author: ObjectId, message: string) {
     const _id = await this.comments.createOne({ target, author, message });
-    return { msg: "Comment successfully created!", post: await this.comments.readOne({ _id }) };
+    return { msg: "Comment successfully created!", comment: await this.comments.readOne({ _id }) };
   }
 
   async getComments(query: Filter<CommentDoc>) {
