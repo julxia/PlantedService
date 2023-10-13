@@ -43,17 +43,17 @@ export default class CommentsConcept {
   }
 
   async isAuthor(user: ObjectId, _id: ObjectId) {
-    const post = await this.comments.readOne({ _id });
-    if (!post) {
+    const comment = await this.comments.readOne({ _id });
+    if (!comment) {
       throw new NotFoundError(`Comment ${_id} does not exist!`);
     }
-    if (post.author.toString() !== user.toString()) {
+    if (comment.author.toString() !== user.toString()) {
       throw new CommentAuthorNotMatchError(user, _id);
     }
   }
 
   private sanitizeUpdate(update: Partial<CommentDoc>) {
-    // Make sure the update cannot change the author.
+    // Make sure the update cannot change the author or target.
     const allowedUpdates = ["message"];
     for (const key in update) {
       if (!allowedUpdates.includes(key)) {
