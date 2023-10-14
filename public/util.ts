@@ -132,7 +132,7 @@ const operations: operation[] = [
     fields: { author: "input" },
   },
   {
-    name: "Get Post Locations",
+    name: "Get Post Locations (empty for all)",
     endpoint: "/api/locations/posts/:id",
     method: "GET",
     fields: { id: "input" },
@@ -232,6 +232,36 @@ const operations: operation[] = [
     endpoint: "/api/groups/members",
     method: "DELETE",
     fields: { groupID: "input", username: "input" },
+  },
+  {
+    name: "Add Tag to Post",
+    endpoint: "/api/tags",
+    method: "POST",
+    fields: { postID: "input", tagName: "input" },
+  },
+  {
+    name: "Get all tags of user",
+    endpoint: "/api/tags",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Get items under tag",
+    endpoint: "/api/tags/:username/:name",
+    method: "GET",
+    fields: { username: "input", name: "input" },
+  },
+  {
+    name: "Get tags of a post",
+    endpoint: "/api/tags/:id",
+    method: "GET",
+    fields: { id: "input" },
+  },
+  {
+    name: "Delete Tag",
+    endpoint: "/api/tags",
+    method: "DELETE",
+    fields: { tagID: "input" },
   },
 ];
 

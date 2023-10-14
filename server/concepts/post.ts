@@ -28,6 +28,12 @@ export default class PostConcept {
     return posts;
   }
 
+  async getPost(_id: ObjectId) {
+    const post = await this.posts.readOne({ _id });
+    if (!post) throw new NotFoundError("Post does not exists!");
+    return post;
+  }
+
   async getByAuthor(author: ObjectId) {
     return await this.getPosts({ author });
   }

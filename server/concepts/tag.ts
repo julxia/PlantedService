@@ -14,7 +14,7 @@ export default class TagConcept {
   async add(author: ObjectId, item: ObjectId, name: string) {
     await this.canCreate(author, item, name);
     const _id = await this.tags.createOne({ author, item, name });
-    return { msg: "Item successfully tagged!", post: await this.tags.readOne({ _id }) };
+    return { msg: `Item successfully tagged as ${name}!`, tag: await this.tags.readOne({ _id }) };
   }
 
   async getTags(query: Filter<TagDoc>) {
@@ -36,12 +36,22 @@ export default class TagConcept {
     return await this.getTags({ author, item });
   }
 
-  async delete(author: ObjectId, item: ObjectId, name: string) {
-    const tag = await this.tags.popOne({ author, item, name });
+  async delete(tagID: ObjectId) {
+    const tag = await this.tags.popOne({ _id: tagID });
     if (tag) {
       return { msg: "Tag successfully removed!", tag };
     } else {
-      throw new TagNotFoundError(name);
+      throw new NotFoundError("Tag not found under user!");
+    }
+  }
+
+  async isAuthor(user: ObjectId, _id: ObjectId) {
+    const tag = await this.tags.readOne({ _id });
+    if (!tag) {
+      throw new NotFoundError(`Tag ${_id} does not exist!`);
+    }
+    if (tag.author.toString() !== user.toString()) {
+      throw new TagAuthorNotMatchError(user, _id);
     }
   }
 
@@ -66,8 +76,11 @@ export default class TagConcept {
   }
 }
 
-export class TagNotFoundError extends NotFoundError {
-  constructor(public readonly tag: string) {
-    super("The tag #{0} does not exist!", tag);
+export class TagAuthorNotMatchError extends NotAllowedError {
+  constructor(
+    public readonly author: ObjectId,
+    public readonly _id: ObjectId,
+  ) {
+    super("{0} is not the author of the tagged post {1}!", author, _id);
   }
 }

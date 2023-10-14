@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Comments, Friend, Group, Post, PostLocation, Profile, User, UserLocation, WebSession } from "./app";
+import { Comments, Friend, Group, Post, PostLocation, Profile, Tag, User, UserLocation, WebSession } from "./app";
 import { LocationDoc } from "./concepts/map";
 import { PostDoc, PostOptions } from "./concepts/post";
 import { ProfileDoc } from "./concepts/profile";
@@ -292,6 +292,38 @@ class Routes {
     const memberID = (await User.getUserByUsername(username))._id;
     await Group.isInGroup(groupID, user);
     return await Group.removeMember(groupID, memberID);
+  }
+
+  @Router.post("/tags")
+  async addTag(session: WebSessionDoc, postID: ObjectId, tagName: string) {
+    const user = WebSession.getUser(session);
+    await Post.getPost(postID);
+    return await Tag.add(user, postID, tagName);
+  }
+
+  @Router.get("/tags")
+  async getTags(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    return await Tag.getTagsByAuthor(user);
+  }
+
+  @Router.get("/tags/:username/:name")
+  async getItemsUnderTag(username: string, name: string) {
+    const author = await User.getUserByUsername(username);
+    return await Tag.getItemsByTag(author._id, name);
+  }
+
+  @Router.get("/tags/:id")
+  async getTagsOfItem(session: WebSessionDoc, id: ObjectId) {
+    const user = WebSession.getUser(session);
+    return await Tag.getItemTags(user, id);
+  }
+
+  @Router.delete("/tags")
+  async deleteItemTag(session: WebSessionDoc, tagID: ObjectId) {
+    const user = WebSession.getUser(session);
+    await Tag.isAuthor(user, tagID);
+    return await Tag.delete(tagID);
   }
 }
 
