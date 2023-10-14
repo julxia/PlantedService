@@ -8,14 +8,8 @@ export interface GroupDoc extends BaseDoc {
   member: ObjectId;
 }
 
-export interface GroupItemsDoc extends BaseDoc {
-  group: ObjectId;
-  post: ObjectId;
-}
-
 export default class GroupConcept {
   public readonly groups = new DocCollection<GroupDoc>("groups");
-  public readonly groupItems = new DocCollection<GroupItemsDoc>("groupItems");
 
   async create(creator: ObjectId, name: string) {
     const _id = await this.groups.createOne({ name, member: creator });
@@ -23,63 +17,61 @@ export default class GroupConcept {
     return { msg: `Group ${name} successfully created!`, group: await this.groups.readOne({ _id }) };
   }
 
-  async getGroupCreator(groupID: ObjectId) {
-    const creator = await this.groups.readOne({ _id: groupID });
-    if (!creator) {
-      throw new NotFoundError(`Group does not exist!`);
-    }
-    return creator;
+  async delete(groupID: ObjectId, user: ObjectId) {
+    const originalNode = await this.isInGroup(groupID, user);
+    await this.groups.deleteMany({ groupID: new ObjectId(groupID) });
+    return { msg: `Group ${originalNode.name} was successfully deleted!` };
   }
 
-  async getGroupMembers(groupID: ObjectId) {
-    const creator = await this.getGroupCreator(groupID);
-    const group = await this.groups.readMany({ groupID: creator._id });
-    return group;
+  async getGroupInfo(groupID: ObjectId) {
+    const originalNode = await this.groups.readOne({ _id: groupID });
+    if (!originalNode || !originalNode.name) {
+      throw new NotFoundError(`Group does not exist!`);
+    }
+    const members = await this.groups.readMany({ groupID: originalNode.groupID });
+    return { groupID: originalNode.groupID, groupName: originalNode.name, creator: originalNode.member, members: members.map((info) => info.member) };
+  }
+
+  async getGroupsOfUser(user: ObjectId) {
+    return await this.groups.readMany({ member: user });
+  }
+
+  async isInGroup(groupID: ObjectId, member: ObjectId) {
+    const originalNode = await this.groups.readOne({ _id: groupID });
+    const maybeMember = await this.groups.readOne({ groupID: new ObjectId(groupID), member });
+    if (!originalNode || !originalNode.name) {
+      throw new NotFoundError(`Group does not exist!`);
+    } else if (!maybeMember) {
+      throw new NotAllowedError(`User is not in group ${originalNode.name}!`);
+    }
+    return originalNode;
   }
 
   async updateGroupName(groupID: ObjectId, name: string) {
-    const creator = await this.getGroupCreator(groupID);
-    await this.groups.updateOne(creator, { name });
-    return { msg: `Group ${name} was updated successfully!`, creator: creator };
+    const originalNode = await this.getGroupInfo(groupID);
+    await this.groups.updateOne({ _id: originalNode.groupID }, { name });
+    return { msg: `Group ${name} was updated successfully!`, groupInfo: await this.getGroupInfo(groupID) };
   }
 
   async addMember(groupID: ObjectId, member: ObjectId) {
-    const creator = await this.getGroupCreator(groupID);
-    const _id = await this.groups.createOne({ groupID, member });
-    return { msg: `User was successfully added to ${creator.name}`, post: await this.groups.readOne({ _id }) };
+    const creator = await this.getGroupInfo(groupID);
+    await this.groups.createOne({ groupID: new ObjectId(groupID), member });
+    return { msg: `User was successfully added to ${creator.groupName}`, groupInfo: await this.getGroupInfo(groupID) };
   }
 
   async removeMember(groupID: ObjectId, member: ObjectId) {
-    const creator = await this.getGroupCreator(groupID);
-    if (member === creator.member) {
+    const originalNode = await this.getGroupInfo(groupID);
+    if (member.toString() === originalNode.creator.toString()) {
       // creator can not leave group
       throw new NotAllowedError(`Creator cannot leave group`);
     } else {
-      const groupMember = await this.groups.popOne({ groupID, member });
+      const groupMember = await this.groups.popOne({ groupID: new ObjectId(groupID), member });
       if (groupMember) {
-        return { msg: `User successfully left group ${creator.name}!`, groupMember };
+        return { msg: `User successfully left group ${originalNode.groupName}!`, groupInfo: await this.getGroupInfo(groupID) };
       } else {
-        throw new GroupMemberNotFound(creator.name!);
+        throw new GroupMemberNotFound(originalNode.groupName!);
       }
     }
-  }
-
-  async addPost(groupID: ObjectId, post: ObjectId) {
-    const creator = await this.getGroupCreator(groupID);
-    const _id = await this.groupItems.createOne({ group: groupID, post });
-    return { msg: `Post was successfully added to ${creator.name}`, post: await this.groupItems.readOne({ _id }) };
-  }
-
-  async removePost(groupID: ObjectId, post: ObjectId) {
-    const creator = await this.getGroupCreator(groupID);
-    const removed = await this.groupItems.popOne({ group: groupID, post });
-    return { msg: `Post was successfully removed from ${creator.name}`, post: removed };
-  }
-
-  async getPosts(groupID: ObjectId) {
-    const creator = await this.getGroupCreator(groupID);
-    const groupItems = await this.groupItems.readMany({ groupID: creator._id });
-    return groupItems;
   }
 }
 

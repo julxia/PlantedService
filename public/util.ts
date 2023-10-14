@@ -191,6 +191,48 @@ const operations: operation[] = [
     method: "DELETE",
     fields: { id: "input" },
   },
+  {
+    name: "Create Group",
+    endpoint: "/api/groups",
+    method: "POST",
+    fields: { name: "input" },
+  },
+  {
+    name: "Get All Groups of User",
+    endpoint: "/api/groups",
+    method: "GET",
+    fields: {},
+  },
+  {
+    name: "Delete Group",
+    endpoint: "/api/groups",
+    method: "DELETE",
+    fields: { id: "input" },
+  },
+  {
+    name: "Get Group Info",
+    endpoint: "/api/groups/:id",
+    method: "GET",
+    fields: { id: "input" },
+  },
+  {
+    name: "Update Group Name",
+    endpoint: "/api/groups",
+    method: "PATCH",
+    fields: { groupID: "input", name: "input" },
+  },
+  {
+    name: "Add member to group",
+    endpoint: "/api/groups/members",
+    method: "PATCH",
+    fields: { groupID: "input", username: "input" },
+  },
+  {
+    name: "Remove member from group",
+    endpoint: "/api/groups/members",
+    method: "DELETE",
+    fields: { groupID: "input", username: "input" },
+  },
 ];
 
 // Do not edit below here.

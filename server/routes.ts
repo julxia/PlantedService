@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Comments, Friend, Post, PostLocation, Profile, User, UserLocation, WebSession } from "./app";
+import { Comments, Friend, Group, Post, PostLocation, Profile, User, UserLocation, WebSession } from "./app";
 import { LocationDoc } from "./concepts/map";
 import { PostDoc, PostOptions } from "./concepts/post";
 import { ProfileDoc } from "./concepts/profile";
@@ -246,6 +246,52 @@ class Routes {
     await Post.isAuthor(user, id);
     const post = await Post.getPosts({ _id: id }).then((response) => response[0]);
     return await PostLocation.update(post._id, update);
+  }
+
+  @Router.post("/groups")
+  async createGroup(session: WebSessionDoc, name: string) {
+    const user = WebSession.getUser(session);
+    return await Group.create(user, name);
+  }
+
+  @Router.delete("/groups")
+  async deleteGroup(session: WebSessionDoc, id: ObjectId) {
+    const user = WebSession.getUser(session);
+    return await Group.delete(id, user);
+  }
+
+  @Router.get("/groups/:id")
+  async getGroupInfo(id: ObjectId) {
+    return await Group.getGroupInfo(id);
+  }
+
+  @Router.get("/groups")
+  async getGroupsOfUser(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    return await Group.getGroupsOfUser(user);
+  }
+
+  @Router.patch("/groups")
+  async updateGroup(session: WebSessionDoc, groupID: ObjectId, name: string) {
+    const user = WebSession.getUser(session);
+    await Group.isInGroup(groupID, user);
+    return await Group.updateGroupName(groupID, name);
+  }
+
+  @Router.patch("/groups/members")
+  async addMember(session: WebSessionDoc, groupID: ObjectId, username: string) {
+    const user = WebSession.getUser(session);
+    const memberID = (await User.getUserByUsername(username))._id;
+    await Group.isInGroup(groupID, user);
+    return await Group.addMember(groupID, memberID);
+  }
+
+  @Router.delete("/groups/members")
+  async removeMember(session: WebSessionDoc, groupID: ObjectId, username: string) {
+    const user = WebSession.getUser(session);
+    const memberID = (await User.getUserByUsername(username))._id;
+    await Group.isInGroup(groupID, user);
+    return await Group.removeMember(groupID, memberID);
   }
 }
 
