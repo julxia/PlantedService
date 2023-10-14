@@ -21,7 +21,7 @@ const operations: operation[] = [
     name: "Create User",
     endpoint: "/api/users",
     method: "POST",
-    fields: { username: "input", password: "input", displayName: "input", photo: "input" },
+    fields: { username: "input", password: "input", displayName: "input", photo: "input", latitude: "input", longitude: "input" },
   },
   {
     name: "Login",
@@ -48,6 +48,12 @@ const operations: operation[] = [
     fields: { update: { displayName: "input", photo: "input" } },
   },
   {
+    name: "Update User Location",
+    endpoint: "/api/locations/users",
+    method: "PATCH",
+    fields: { update: { latitude: "input", longitude: "input" } },
+  },
+  {
     name: "Delete User",
     endpoint: "/api/users",
     method: "DELETE",
@@ -64,6 +70,18 @@ const operations: operation[] = [
     endpoint: "/api/profiles/:username",
     method: "GET",
     fields: { username: "input" },
+  },
+  {
+    name: "Get User Locations (empty for all)",
+    endpoint: "/api/locations/users/:username",
+    method: "GET",
+    fields: { username: "input" },
+  },
+  {
+    name: "Get Users @ Location",
+    endpoint: "/api/locations/users/filter/:latitude/:longitude",
+    method: "GET",
+    fields: { latitude: "input", longitude: "input" },
   },
   {
     name: "Get Friends",
@@ -114,16 +132,34 @@ const operations: operation[] = [
     fields: { author: "input" },
   },
   {
+    name: "Get Post Locations",
+    endpoint: "/api/locations/posts/:id",
+    method: "GET",
+    fields: { id: "input" },
+  },
+  {
+    name: "Get Posts @ Location",
+    endpoint: "/api/locations/posts/filter/:latitude/:longitude",
+    method: "GET",
+    fields: { latitude: "input", longitude: "input" },
+  },
+  {
     name: "Create Post",
     endpoint: "/api/posts",
     method: "POST",
-    fields: { content: "input" },
+    fields: { content: "input", latitude: "input", longitude: "input" },
   },
   {
     name: "Update Post",
     endpoint: "/api/posts/:id",
     method: "PATCH",
     fields: { id: "input", update: { content: "input", options: { backgroundColor: "input" } } },
+  },
+  {
+    name: "Update Post Location",
+    endpoint: "/api/locations/posts/:id",
+    method: "PATCH",
+    fields: { id: "input", update: { latitude: "input", longitude: "input" } },
   },
   {
     name: "Delete Post",

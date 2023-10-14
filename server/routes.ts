@@ -2,7 +2,8 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Comments, Friend, Post, Profile, User, WebSession } from "./app";
+import { Comments, Friend, Post, PostLocation, Profile, User, UserLocation, WebSession } from "./app";
+import { LocationDoc } from "./concepts/map";
 import { PostDoc, PostOptions } from "./concepts/post";
 import { ProfileDoc } from "./concepts/profile";
 import { UserDoc } from "./concepts/user";
@@ -37,9 +38,10 @@ class Routes {
   }
 
   @Router.post("/users")
-  async createUser(session: WebSessionDoc, username: string, password: string, displayName: string, photo: string) {
+  async createUser(session: WebSessionDoc, username: string, password: string, displayName: string, photo: string, latitude: string, longitude: string) {
     WebSession.isLoggedOut(session);
     const { user } = await User.create(username, password);
+    await UserLocation.register(user!._id, latitude, longitude);
     return await Profile.create(user!, displayName, photo);
   }
 
@@ -64,6 +66,7 @@ class Routes {
     const owner = await User.getUserById(user);
     WebSession.end(session);
     await User.delete(user);
+    await UserLocation.delete(user);
     return await Profile.delete(owner);
   }
 
@@ -93,10 +96,12 @@ class Routes {
   }
 
   @Router.post("/posts")
-  async createPost(session: WebSessionDoc, content: string, options?: PostOptions) {
+  async createPost(session: WebSessionDoc, content: string, latitude: string, longitude: string, options?: PostOptions) {
     const user = WebSession.getUser(session);
     const created = await Post.create(user, content, options);
-    return { msg: created.msg, post: await Responses.post(created.post) };
+    const post = await Responses.post(created.post);
+    await PostLocation.register(post!._id, latitude, longitude);
+    return { msg: created.msg, post };
   }
 
   @Router.patch("/posts/:_id")
@@ -110,7 +115,9 @@ class Routes {
   async deletePost(session: WebSessionDoc, _id: ObjectId) {
     const user = WebSession.getUser(session);
     await Post.isAuthor(user, _id);
-    return Post.delete(_id);
+    const post = await Post.getPosts({ _id }).then((response) => response[0]);
+    await PostLocation.delete(post._id);
+    return await Post.delete(_id);
   }
 
   @Router.get("/comments")
@@ -143,9 +150,7 @@ class Routes {
 
   @Router.delete("/comments/:_id")
   async deleteComment(session: WebSessionDoc, _id: ObjectId) {
-    console.log(_id);
     const user = WebSession.getUser(session);
-    console.log(user);
     await Comments.isAuthor(user, _id);
     return Comments.delete(_id);
   }
@@ -195,6 +200,52 @@ class Routes {
     const user = WebSession.getUser(session);
     const fromId = (await User.getUserByUsername(from))._id;
     return await Friend.rejectRequest(fromId, user);
+  }
+
+  @Router.get("/locations/users")
+  async getUserLocations() {
+    return await UserLocation.getLocations();
+  }
+
+  @Router.get("/locations/users/:username")
+  async getUserLocation(username: string) {
+    const user = await User.getUserByUsername(username);
+    return await UserLocation.getLocations(user._id);
+  }
+
+  @Router.get("/locations/users/filter/:latitude/:longitude")
+  async getUserTargets(latitude: string, longitude: string) {
+    return await UserLocation.getTargets({ latitude, longitude });
+  }
+
+  @Router.patch("/locations/users")
+  async updateUserLocation(session: WebSessionDoc, update: Partial<LocationDoc>) {
+    const user = WebSession.getUser(session);
+    return await UserLocation.update(user, update);
+  }
+
+  @Router.get("/locations/posts")
+  async getPostLocations() {
+    return await PostLocation.getLocations();
+  }
+
+  @Router.get("/locations/posts/:_id")
+  async getPostLocation(_id: ObjectId) {
+    const post = await Post.getPosts({ _id }).then((response) => response[0]);
+    return await PostLocation.getLocations(post._id);
+  }
+
+  @Router.get("/locations/posts/filter/:latitude/:longitude")
+  async getPostTargets(latitude: string, longitude: string) {
+    return await PostLocation.getTargets({ latitude, longitude });
+  }
+
+  @Router.patch("/locations/posts/:id")
+  async updatePostLocation(session: WebSessionDoc, id: ObjectId, update: Partial<LocationDoc>) {
+    const user = WebSession.getUser(session);
+    await Post.isAuthor(user, id);
+    const post = await Post.getPosts({ _id: id }).then((response) => response[0]);
+    return await PostLocation.update(post._id, update);
   }
 }
 

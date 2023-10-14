@@ -1,10 +1,6 @@
-import { Filter, ObjectId } from "mongodb";
+import { ObjectId } from "mongodb";
 import DocCollection, { BaseDoc } from "../framework/doc";
-import { BadValuesError, NotAllowedError } from "./errors";
-import { PostDoc } from "./post";
-import { UserDoc } from "./user";
-
-type TargetType = UserDoc | PostDoc; //might need to omit password
+import { BadValuesError, NotAllowedError, NotFoundError } from "./errors";
 
 export interface LocationDoc extends BaseDoc {
   target: ObjectId;
@@ -12,44 +8,49 @@ export interface LocationDoc extends BaseDoc {
   longitude: string;
 }
 
-export default class MapConcept<Target extends TargetType> {
+export default class MapConcept {
   public readonly locations: DocCollection<LocationDoc>;
 
   constructor(name: string) {
     this.locations = new DocCollection<LocationDoc>(name);
   }
 
-  async register(target: Target, latitude: string, longitude: string) {
+  async register(target: ObjectId, latitude: string, longitude: string) {
     await this.canCreate(target, latitude, longitude);
-    const _id = await this.locations.createOne({ target: target._id, latitude, longitude });
+    const _id = await this.locations.createOne({ target, latitude, longitude });
     return { msg: `Target registered at (${latitude}, ${longitude}) successfully!`, location: await this.locations.readOne({ _id })! };
   }
 
-  async getTargets(query: Filter<LocationDoc>) {
-    const locations = await this.locations.readMany(query, {
-      sort: { dateUpdated: -1 },
-    });
+  async getTargets(filter: Partial<LocationDoc>) {
+    const locations = await this.locations.readMany(filter);
     return locations;
   }
 
-  async getAllByLocation(latitude: string, longitude: string) {
-    return await this.getTargets({ latitude, longitude });
+  async getLocations(target?: ObjectId) {
+    // If target is undefined, return locations of everyone
+    const filter = target ? { target } : {};
+    const locations = await this.locations.readMany(filter);
+    return locations;
   }
 
-  async getTargetLocation(target: Target) {
-    return await this.getTargets({ target: target._id });
-  }
-
-  async update(target: Target, update: Partial<LocationDoc>) {
+  async update(target: ObjectId, update: Partial<LocationDoc>) {
     this.sanitizeUpdate(update);
-    const _id = await this.getTargetLocation(target);
-    await this.locations.updateOne({ _id }, update);
-    return { msg: "Location successfully updated!" };
+    await this.targetExists(target);
+    await this.locations.updateOne({ target }, update);
+    const result = await this.locations.readOne({ target })!;
+    return { msg: `Location updated to (${result?.latitude}, ${result?.longitude}) successfully!` };
   }
 
-  async delete(target: Target) {
-    await this.locations.deleteOne({ target: target._id });
-    return { msg: "Post deleted successfully!" };
+  async delete(target: ObjectId) {
+    await this.locations.deleteOne({ target });
+    return { msg: "User location deleted successfully!" };
+  }
+
+  async targetExists(target: ObjectId) {
+    const maybeTarget = await this.locations.readOne({ target });
+    if (maybeTarget === null) {
+      throw new NotFoundError(`Target not found!`);
+    }
   }
 
   private sanitizeUpdate(update: Partial<LocationDoc>) {
@@ -62,15 +63,15 @@ export default class MapConcept<Target extends TargetType> {
     }
   }
 
-  private async canCreate(target: Target, latitude: string, longitude: string) {
+  private async canCreate(target: ObjectId, latitude: string, longitude: string) {
     if (!latitude || !longitude) {
       throw new BadValuesError("Latitude and longitude must be given!");
     }
     await this.isTargetUnique(target);
   }
 
-  private async isTargetUnique(target: Target) {
-    if (await this.locations.readOne({ id: target._id })) {
+  private async isTargetUnique(target: ObjectId) {
+    if (await this.locations.readOne({ id: target })) {
       throw new NotAllowedError(`Location for target already exists!`);
     }
   }
