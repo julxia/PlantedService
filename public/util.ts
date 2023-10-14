@@ -263,6 +263,24 @@ const operations: operation[] = [
     method: "DELETE",
     fields: { tagID: "input" },
   },
+  {
+    name: "View canvas (empty for all)",
+    endpoint: "/api/canvas/:id",
+    method: "GET",
+    fields: { id: "input" },
+  },
+  {
+    name: "Add to canvas",
+    endpoint: "/api/canvas",
+    method: "POST",
+    fields: { postID: "input" },
+  },
+  {
+    name: "Remove from canvas",
+    endpoint: "/api/canvas",
+    method: "DELETE",
+    fields: { postID: "input" },
+  },
 ];
 
 // Do not edit below here.

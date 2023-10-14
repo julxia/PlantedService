@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Comments, Friend, Group, Post, PostLocation, Profile, Tag, User, UserLocation, WebSession } from "./app";
+import { Canvas, Comments, Friend, Group, Post, PostLocation, Profile, Tag, User, UserLocation, WebSession } from "./app";
 import { LocationDoc } from "./concepts/map";
 import { PostDoc, PostOptions } from "./concepts/post";
 import { ProfileDoc } from "./concepts/profile";
@@ -67,6 +67,7 @@ class Routes {
     WebSession.end(session);
     await User.delete(user);
     await UserLocation.delete(user);
+    await Canvas.deleteCanvasFilter({ user });
     return await Profile.delete(owner);
   }
 
@@ -115,8 +116,9 @@ class Routes {
   async deletePost(session: WebSessionDoc, _id: ObjectId) {
     const user = WebSession.getUser(session);
     await Post.isAuthor(user, _id);
-    const post = await Post.getPosts({ _id }).then((response) => response[0]);
+    const post = await Post.getPost(_id);
     await PostLocation.delete(post._id);
+    await Canvas.deleteCanvasFilter({ post: _id });
     return await Post.delete(_id);
   }
 
@@ -324,6 +326,33 @@ class Routes {
     const user = WebSession.getUser(session);
     await Tag.isAuthor(user, tagID);
     return await Tag.delete(tagID);
+  }
+
+  @Router.get("/canvas")
+  async viewCanvas() {
+    return await Canvas.getCanvas();
+  }
+
+  @Router.get("/canvas/:id")
+  async viewUserCanvas(id: ObjectId) {
+    const user = await User.getUserById(id);
+    return await Canvas.getCanvas(user._id);
+  }
+
+  @Router.post("/canvas")
+  async addToCanvas(session: WebSessionDoc, postID: ObjectId) {
+    const userID = WebSession.getUser(session);
+    const user = await User.getUserById(userID);
+    await Post.getPost(postID);
+    return await Canvas.addPost(user, postID);
+  }
+
+  @Router.delete("/canvas")
+  async removeFromCanvas(session: WebSessionDoc, postID: ObjectId) {
+    const userID = WebSession.getUser(session);
+    const user = await User.getUserById(userID);
+    await Post.getPost(postID);
+    return await Canvas.removePost(user, postID);
   }
 }
 

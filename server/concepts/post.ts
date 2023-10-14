@@ -30,7 +30,7 @@ export default class PostConcept {
 
   async getPost(_id: ObjectId) {
     const post = await this.posts.readOne({ _id });
-    if (!post) throw new NotFoundError("Post does not exists!");
+    if (!post) throw new NotFoundError("Post does not exist!");
     return post;
   }
 

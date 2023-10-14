@@ -13,6 +13,10 @@ type UserType = Omit<UserDoc, "password">;
 export default class CanvasConcept<User extends UserType> {
   public readonly canvas = new DocCollection<CanvasDoc>("canvas");
 
+  async deleteCanvasFilter(filter: Partial<CanvasDoc>) {
+    await this.canvas.deleteMany(filter);
+  }
+
   async addPost(user: User, post: ObjectId) {
     const existing = await this.userHasPost(user, post);
     if (!existing) {
@@ -31,14 +35,10 @@ export default class CanvasConcept<User extends UserType> {
     throw new NotAllowedError(`Post not on user ${user.username}'s canvas`);
   }
 
-  async getPostsByUser(user: User) {
-    const posts = await this.canvas.readMany({ user: user._id });
-    return posts;
-  }
-
-  async getUsersByPost(post: User) {
-    const posts = await this.canvas.readMany({ post });
-    return posts;
+  async getCanvas(id?: ObjectId) {
+    const filter = id ? { user: id } : {};
+    const users = await this.canvas.readMany(filter);
+    return users;
   }
 
   private async userHasPost(user: User, post: ObjectId) {
