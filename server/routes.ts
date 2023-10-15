@@ -368,6 +368,13 @@ class Routes {
     return await Group.updateGroupName(groupID, name);
   }
 
+  @Router.patch("/groups/ownership")
+  async updateGroupOwnership(session: WebSessionDoc, groupID: ObjectId, member: string) {
+    const user = WebSession.getUser(session);
+    const maybeMember = await User.getUserByUsername(member);
+    return await Group.transferOwnership(groupID, user, maybeMember._id);
+  }
+
   @Router.patch("/groups/members")
   async addMember(session: WebSessionDoc, groupID: ObjectId, username: string) {
     const user = WebSession.getUser(session);

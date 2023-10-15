@@ -59,11 +59,33 @@ export default class GroupConcept {
     return { msg: `User was successfully added to ${creator.groupName}`, groupInfo: await this.getGroupInfo(groupID) };
   }
 
+  async transferOwnership(groupID: ObjectId, owner: ObjectId, member: ObjectId) {
+    if (owner.toString() === member.toString()) {
+      throw new NotAllowedError("Ownership cannot be transferred ot same user");
+    }
+
+    const group = await this.getGroupInfo(groupID);
+    const members = new Set(group.members.map((id) => id.toString()));
+    const memberString = member.toString();
+
+    if (owner.toString() !== group.creator.toString()) {
+      throw new NotAllowedError("Only the owner can transfer ownership");
+    } else if (memberString === group.creator.toString()) {
+      throw new NotAllowedError(`User is already the owner of group ${group.groupName}`);
+    } else if (!members.has(memberString)) {
+      throw new NotAllowedError(`User is not in group ${group.groupName}`);
+    }
+
+    await this.groups.updateOne({ groupID: group.groupID, member }, { member: group.creator });
+    await this.groups.updateOne({ _id: group.groupID }, { member });
+    return { msg: `${group.groupName}: Ownership was successfully transferred`, groupInfo: await this.getGroupInfo(groupID) };
+  }
+
   async removeMember(groupID: ObjectId, member: ObjectId) {
     const originalNode = await this.getGroupInfo(groupID);
     if (member.toString() === originalNode.creator.toString()) {
-      // creator can not leave group
-      throw new NotAllowedError(`Creator cannot leave group`);
+      // Owner can not leave group
+      throw new NotAllowedError(`Owner cannot leave group, must transfer ownership first.`);
     } else {
       const groupMember = await this.groups.popOne({ groupID: new ObjectId(groupID), member });
       if (groupMember) {

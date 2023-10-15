@@ -228,6 +228,12 @@ const operations: operation[] = [
     fields: { groupID: "input", name: "input" },
   },
   {
+    name: "Transfer ownership",
+    endpoint: "/api/groups/ownership",
+    method: "PATCH",
+    fields: { groupID: "input", member: "input" },
+  },
+  {
     name: "Add member to group",
     endpoint: "/api/groups/members",
     method: "PATCH",
