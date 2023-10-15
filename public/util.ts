@@ -216,6 +216,12 @@ const operations: operation[] = [
     fields: { id: "input" },
   },
   {
+    name: "Get Posts Under Group",
+    endpoint: "/api/groups/:id/posts",
+    method: "GET",
+    fields: { id: "input" },
+  },
+  {
     name: "Update Group Name",
     endpoint: "/api/groups",
     method: "PATCH",

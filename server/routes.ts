@@ -85,13 +85,25 @@ class Routes {
   }
 
   @Router.get("/posts")
-  async getPosts(author?: string) {
+  async getPosts(session: WebSessionDoc, author?: string) {
+    const user = WebSession.getUser(session);
     let posts;
     if (author) {
       const id = (await User.getUserByUsername(author))._id;
+      console.log(Friend.areFriends(user, id));
+      if (!(await Friend.areFriends(user, id))) {
+        const currUser = await User.getUserById(user);
+        return { msg: `Cannot get posts, User ${currUser.username} and author ${author} are not friends` };
+      }
       posts = await Post.getByAuthor(id);
     } else {
-      posts = await Post.getPosts({});
+      const allPosts = await Post.getPosts({});
+      const friendFilter = await Promise.all(
+        allPosts.map(async (post) => {
+          return await Friend.areFriends(user, post.author);
+        }),
+      );
+      posts = allPosts.filter((_, index) => friendFilter[index]);
     }
     return Responses.posts(posts);
   }
@@ -123,15 +135,33 @@ class Routes {
   }
 
   @Router.get("/comments")
-  async getComments(author?: string, post?: ObjectId) {
+  async getComments(session: WebSessionDoc, author?: string, post?: ObjectId) {
+    const user = WebSession.getUser(session);
     let comments;
     if (author) {
-      const id = (await User.getUserByUsername(author))._id;
+      const authorUser = await User.getUserByUsername(author);
+      const id = authorUser._id;
+      if (!(await Friend.areFriends(user, id))) {
+        const currUser = await User.getUserById(user);
+        return { msg: `Cannot get comments as User ${currUser.username} and Author ${authorUser.username} are not friends` };
+      }
       comments = await Comments.getByAuthor(id);
     } else if (post) {
+      const postData = await Post.getPost(post);
+      if (!(await Friend.areFriends(user, postData.author))) {
+        const currUser = await User.getUserById(user);
+        const authorUser = await User.getUserById(postData.author);
+        return { msg: `Cannot get comment under post as User ${currUser.username} and Author ${authorUser.username} are not friends` };
+      }
       comments = await Comments.getByTarget(post);
     } else {
-      comments = await Comments.getComments({});
+      const allComments = await Comments.getComments({});
+      const friendFilter = await Promise.all(
+        allComments.map(async (comment) => {
+          return await Friend.areFriends(user, comment.author);
+        }),
+      );
+      comments = allComments.filter((_, index) => friendFilter[index]);
     }
     return Responses.comments(comments);
   }
@@ -205,19 +235,36 @@ class Routes {
   }
 
   @Router.get("/locations/users")
-  async getUserLocations() {
-    return await UserLocation.getLocations();
+  async getUserLocations(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    const allLocations = await UserLocation.getLocations();
+    const friendFilter = await Promise.all(
+      allLocations.map(async (otherUser) => {
+        return await Friend.areFriends(user, otherUser.target);
+      }),
+    );
+    return allLocations.filter((_, index) => friendFilter[index]);
   }
 
   @Router.get("/locations/users/:username")
-  async getUserLocation(username: string) {
-    const user = await User.getUserByUsername(username);
-    return await UserLocation.getLocations(user._id);
+  async getUserLocation(session: WebSessionDoc, username: string) {
+    const user = WebSession.getUser(session);
+    const otherUser = await User.getUserByUsername(username);
+    if (await Friend.areFriends(user, otherUser._id)) return await UserLocation.getLocations(otherUser._id);
+    const currUser = await User.getUserById(user);
+    return { msg: `Cannot view location, Users ${currUser.username} and ${otherUser.username} are not friends!` };
   }
 
   @Router.get("/locations/users/filter/:latitude/:longitude")
-  async getUserTargets(latitude: string, longitude: string) {
-    return await UserLocation.getTargets({ latitude, longitude });
+  async getUserTargets(session: WebSessionDoc, latitude: string, longitude: string) {
+    const user = WebSession.getUser(session);
+    const allTargets = await UserLocation.getTargets({ latitude, longitude });
+    const friendFilter = await Promise.all(
+      allTargets.map(async (otherUser) => {
+        return await Friend.areFriends(user, otherUser.target);
+      }),
+    );
+    return allTargets.filter((_, index) => friendFilter[index]);
   }
 
   @Router.patch("/locations/users")
@@ -227,19 +274,39 @@ class Routes {
   }
 
   @Router.get("/locations/posts")
-  async getPostLocations() {
-    return await PostLocation.getLocations();
+  async getPostLocations(session: WebSessionDoc) {
+    const user = WebSession.getUser(session);
+    const allPostLocations = await PostLocation.getLocations();
+    const friendFilter = await Promise.all(
+      allPostLocations.map(async (postLocation) => {
+        return await Friend.areFriends(user, await Post.getPost(postLocation.target).then((x) => x.author));
+      }),
+    );
+
+    return allPostLocations.filter((_, index) => friendFilter[index]);
   }
 
   @Router.get("/locations/posts/:_id")
-  async getPostLocation(_id: ObjectId) {
+  async getPostLocation(session: WebSessionDoc, _id: ObjectId) {
+    const user = WebSession.getUser(session);
     const post = await Post.getPosts({ _id }).then((response) => response[0]);
-    return await PostLocation.getLocations(post._id);
+    if (await Friend.areFriends(user, post.author)) return await PostLocation.getLocations(post._id);
+    const currUser = await User.getUserById(user);
+    const authorUser = await User.getUserById(post.author);
+    return { msg: `Cannot view post location, User ${currUser.username} and post author ${authorUser.username} are not friends!` };
   }
 
   @Router.get("/locations/posts/filter/:latitude/:longitude")
-  async getPostTargets(latitude: string, longitude: string) {
-    return await PostLocation.getTargets({ latitude, longitude });
+  async getPostTargets(session: WebSessionDoc, latitude: string, longitude: string) {
+    const user = WebSession.getUser(session);
+    const allTargets = await PostLocation.getTargets({ latitude, longitude });
+    const friendFilter = await Promise.all(
+      allTargets.map(async (postLocation) => {
+        return await Friend.areFriends(user, await Post.getPost(postLocation.target).then((x) => x.author));
+      }),
+    );
+
+    return allTargets.filter((_, index) => friendFilter[index]);
   }
 
   @Router.patch("/locations/posts/:id")
@@ -267,6 +334,24 @@ class Routes {
     return await Group.getGroupInfo(id);
   }
 
+  @Router.get("/groups/:id/posts")
+  async getGroupPosts(session: WebSessionDoc, id: ObjectId) {
+    const user = WebSession.getUser(session);
+    await Group.isInGroup(id, user);
+    const groupMembers = new Set((await Group.getGroupInfo(id).then((x) => x.members)).map((x) => x.toString()));
+    const posts = (await Post.getPosts({})).filter((post) => groupMembers.has(post.author.toString()));
+    return Responses.posts(posts);
+  }
+
+  @Router.get("/groups/:id/comments")
+  async getGroupComments(session: WebSessionDoc, id: ObjectId) {
+    const user = WebSession.getUser(session);
+    await Group.isInGroup(id, user);
+    const groupMembers = new Set((await Group.getGroupInfo(id).then((x) => x.members)).map((x) => x.toString()));
+    const comments = (await Comments.getComments({})).filter((comment) => groupMembers.has(comment.author.toString()));
+    return Responses.comments(comments);
+  }
+
   @Router.get("/groups")
   async getGroupsOfUser(session: WebSessionDoc) {
     const user = WebSession.getUser(session);
@@ -285,7 +370,9 @@ class Routes {
     const user = WebSession.getUser(session);
     const memberID = (await User.getUserByUsername(username))._id;
     await Group.isInGroup(groupID, user);
-    return await Group.addMember(groupID, memberID);
+    if (await Friend.areFriends(user, memberID)) return await Group.addMember(groupID, memberID);
+    const currUser = await User.getUserById(user);
+    return { msg: `Cannot add member to group, Users ${currUser.username} and ${username} are not friends!` };
   }
 
   @Router.delete("/groups/members")
@@ -299,8 +386,10 @@ class Routes {
   @Router.post("/tags")
   async addTag(session: WebSessionDoc, postID: ObjectId, tagName: string) {
     const user = WebSession.getUser(session);
-    await Post.getPost(postID);
-    return await Tag.add(user, postID, tagName);
+    const post = await Post.getPost(postID);
+    if (await Friend.areFriends(user, post.author)) return await Tag.add(user, postID, tagName);
+    const currUser = await User.getUserById(user);
+    return { msg: `Cannot add tag to post, User ${currUser.username} and post author ${post.author} are not friends!` };
   }
 
   @Router.get("/tags")
@@ -310,9 +399,12 @@ class Routes {
   }
 
   @Router.get("/tags/:username/:name")
-  async getItemsUnderTag(username: string, name: string) {
+  async getItemsUnderTag(session: WebSessionDoc, username: string, name: string) {
+    const user = WebSession.getUser(session);
     const author = await User.getUserByUsername(username);
-    return await Tag.getItemsByTag(author._id, name);
+    if (await Friend.areFriends(user, author._id)) return await Tag.getItemsByTag(author._id, name);
+    const currUser = await User.getUserById(user);
+    return { msg: `Cannot view items under tag ${name}, User ${currUser.username} and author ${author.username} are not friends!` };
   }
 
   @Router.get("/tags/:id")
@@ -330,6 +422,7 @@ class Routes {
 
   @Router.get("/canvas")
   async viewCanvas() {
+    // likely won't be used, as users should be able to see their own canvas
     return await Canvas.getCanvas();
   }
 
