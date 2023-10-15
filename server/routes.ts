@@ -41,8 +41,10 @@ class Routes {
   async createUser(session: WebSessionDoc, username: string, password: string, displayName: string, photo: string, latitude: string, longitude: string) {
     WebSession.isLoggedOut(session);
     const { user } = await User.create(username, password);
+    const profile = await Profile.create(user!, displayName, photo);
+    // ideally will have latitude and longitude from frontend default with geolocation api
     await UserLocation.register(user!._id, latitude, longitude);
-    return await Profile.create(user!, displayName, photo);
+    return profile;
   }
 
   @Router.patch("/users")
@@ -113,6 +115,7 @@ class Routes {
     const user = WebSession.getUser(session);
     const created = await Post.create(user, content, options);
     const post = await Responses.post(created.post);
+    // current throws error, but ideally will have latitude and longitude from frontend default with geolocation api
     await PostLocation.register(post!._id, latitude, longitude);
     return { msg: created.msg, post };
   }
